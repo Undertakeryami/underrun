@@ -3,6 +3,86 @@ from curses import *
 from curses import wrapper
 import random
 import time
+import string
+import math
+
+#main game meachanics That i have to workn on right now:
+#this code here is inspired by the turotiral of best beginner python project ;D
+
+
+def ascii_plasma(stdscr, duration=3, speed=0.05):
+    max_y, max_x = stdscr.getmaxyx()
+    curses.start_color()
+    # Define color pairs for plasma
+    curses.init_pair(5, curses.COLOR_RED,     curses.COLOR_BLACK)
+    curses.init_pair(6, curses.COLOR_YELLOW,  curses.COLOR_BLACK)
+    curses.init_pair(7, curses.COLOR_GREEN,   curses.COLOR_BLACK)
+    curses.init_pair(8, curses.COLOR_CYAN,    curses.COLOR_BLACK)
+    curses.init_pair(9, curses.COLOR_BLUE,    curses.COLOR_BLACK)
+    curses.init_pair(10, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+
+    color_pairs = [5, 6, 7, 8, 9, 10]
+    chars = " .:;+*#@░▒▓█"
+
+    t = 0
+    end_time = time.time() + duration
+    while time.time() < end_time:
+        for y in range(max_y - 1):
+            for x in range(max_x - 1):
+                # Plasma formula — overlapping sine waves
+                value = (
+                    math.sin(x / 3.0 + t) +
+                    math.sin(y / 3.0 + t) +
+                    math.sin((x + y) / 6.0 + t) +
+                    math.sin(math.sqrt(x*x + y*y) / 4.0)
+                )
+                # Normalize -4..4 → 0..1
+                norm = (value + 4) / 8.0
+                char_idx  = int(norm * (len(chars) - 1))
+                color_idx = int(norm * (len(color_pairs) - 1))
+
+                try:
+                    stdscr.addstr(y, x, chars[char_idx],
+                                  curses.color_pair(color_pairs[color_idx]))
+                except:
+                    pass
+
+        stdscr.refresh()
+        time.sleep(speed)
+        t += 0.15  # controls animation speed
+    stdscr.clear()
+def matrix_rain(stdscr, duration = 3, speed = 0.05, density = 1, char_set = "matrix"):
+    max_y, max_x = stdscr.getmaxyx()
+    curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
+    curses.init_pair(3, curses.COLOR_WHITE, curses.COLOR_BLACK)
+    sets = {
+        "matrix":  "abcdefghijklmnopqrstuvwxyz01234567890@#$%",
+        "binary":  "01",
+        "symbols": "@#$%&*!?><[]{}",
+        "glitch":  "アイウエオカキクケコ01@#$"  #i love japanese lol 
+    }
+
+    chars = sets.get(char_set, sets["matrix"])
+    active_cols = random.sample(range(max_x - 1), int((max_x - 1) * density)) 
+    cols = {x: random.randint(0, max_y) for x in active_cols}
+
+    end_time = time.time() + duration
+    while time.time() < end_time:
+        for x,y in cols.items():
+            char = random.choice(chars)
+            if 0 <= y < max_y - 1:
+                stdscr.addstr(y, x, char, curses.color_pair(3) | curses.A_BOLD)
+            if 0 <= y - 1 < max_y - 1:
+                stdscr.addstr(y - 1, x, char, curses.color_pair(2))
+            if 0 <= y - 4 < max_y - 1:
+                stdscr.addstr(y - 4, x, " ")
+            cols[x] = (cols[x] + 1) % (max_y + 5)
+
+        stdscr.refresh()
+        time.sleep(speed)
+    stdscr.clear()
+
+
 
 
 def roll_clan(stdscr):
@@ -45,6 +125,40 @@ def get_typed_input(stdscr, y, x):
     #have to work on the random generation of the sentences tpp.
 
 
+def ascii_tunnel(stdscr, duration=3, speed=0.1):
+    max_y, max_x = stdscr.getmaxyx()
+    curses.init_pair(4, curses.COLOR_CYAN, curses.COLOR_BLACK)
+    
+    
+    rings = ["@", "#", "*", "+", ":", ".", " "]
+    frame = 0
+    
+    end_time = time.time() + duration
+    while time.time() < end_time:
+        stdscr.clear()
+        cy, cx = max_y // 2, max_x // 2  
+        
+        for y in range(max_y - 1):
+            for x in range(max_x - 1):
+                #elispese shape equations
+                dy = (y - cy) / (max_y / 2)
+                dx = (x - cx) / (max_x / 4)  # divide by 4 for wide terminal saw this in yt video
+                dist = int((dy**2 + dx**2) ** 0.5 * len(rings))
+                
+                
+                ring_idx = (dist + frame) % len(rings)
+                char = rings[ring_idx]
+                
+                try:
+                    stdscr.addstr(y, x, char, curses.color_pair(4))
+                except:
+                    pass
+        
+        stdscr.refresh()
+        time.sleep(speed)
+        frame += 1
+    
+    stdscr.clear()
 
 
 def typewriter(stdscr, y, x, text, delay=0.03, color=None):
@@ -220,17 +334,42 @@ def main(stdscr):
         stdscr.refresh()
         stdscr.getch()
         stdscr.clear()
+        ascii_plasma(stdscr, duration=3, speed=0.04)
+        
 
 
 #hmm this is acutally cool cause here we haven't actually seems this.
     elif(clan == "Earth"):
-        typewriter_wrap(stdscr, 5, 10, f"The First try..earth")
+        typewriter_wrap(stdscr, 5, 10, f"You are chosen by Earth, One of the most respectable and grounded clan, this clan could increase your hp by 30% and experience points by 5%")
+        stdscr.refresh()
+        stdscr.getch()
+        stdscr.clear()
+        draw_status(stdscr, player)
+        typewriter_wrap(stdscr, 5, 10, f"{player_name}, Now you journey begins as a Earth member clan, the first task consist of a 10 second survival drill, where you neeed to survive and maximise you experience points.")
+        stdscr.refresh()
+        stdscr.getch()
+        stdscr.clear()
+        matrix_rain(stdscr, duration=4, speed=0.04, density=0.7, char_set="binary")
+
+       
+        #after this there would be the starting effect in terminal of the user, hmm i thouhg of doing matrix but yeah we can do any :D
+
     else:
-        typewriter_wrap(stdscr, 5, 10, f"THe clan is water")
+        typewriter_wrap(stdscr, 5, 10, f"You are chosen by Water, one of the most peaceful and loved clan, people here are overpowerful, since this clan could increase your hp by 20% and also your experience points by 10% which provides a significant balance.")
+        stdscr.refresh()
+        stdscr.getch()
+        stdscr.clear()
+        draw_status(stdscr, player)
+        typewriter_wrap(stdscr, 5, 10, f"{player_name}, Now you journey begins as a Water member clan, the first task consist of a 10 second survival drill, where you neeed to survive and maximise you experience points.")
+        stdscr.refresh()
+        stdscr.getch()
+        stdscr.clear()
+        ascii_tunnel(stdscr, duration=2.5, speed=0.08)
+        
     #so usually i would be making only 3 fire water and earth a
     #so like this is being a good scenario and our game is coming.
     #writing my plan for the fire clan.
-
+    
 #now the mains game part would contain first and initial speed typing game of 10 second which is worked for an assasin and
 """as he has to speed type 
 and also in his first mission he has to cool it off."""
