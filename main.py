@@ -6,11 +6,12 @@ import time
 import string
 import math
 
+
+
+
 #main game meachanics That i have to workn on right now:
-#this code here is inspired by the turotiral of best beginner python project ;D
-
-
-def ascii_plasma(stdscr, duration=3, speed=0.05):
+#this code here is inspired by the turotiral of best beginner python project(for wpm) ;
+def ascii_plasma(stdscr, duration=3, speed=0.05): #inspired by youtube video ascci art and a asciiart website
     max_y, max_x = stdscr.getmaxyx()
     curses.start_color()
     # Define color pairs for plasma
@@ -29,7 +30,7 @@ def ascii_plasma(stdscr, duration=3, speed=0.05):
     while time.time() < end_time:
         for y in range(max_y - 1):
             for x in range(max_x - 1):
-                # Plasma formula — overlapping sine waves
+                
                 value = (
                     math.sin(x / 3.0 + t) +
                     math.sin(y / 3.0 + t) +
@@ -70,7 +71,7 @@ def matrix_rain(stdscr, duration = 3, speed = 0.05, density = 1, char_set = "mat
     while time.time() < end_time:
         for x,y in cols.items():
             char = random.choice(chars)
-            if 0 <= y < max_y - 1:
+            if 0 <= y < max_y - 1: #subtracting one since it was crashing due to not nice dimesnsions
                 stdscr.addstr(y, x, char, curses.color_pair(3) | curses.A_BOLD)
             if 0 <= y - 1 < max_y - 1:
                 stdscr.addstr(y - 1, x, char, curses.color_pair(2))
@@ -92,7 +93,7 @@ def roll_clan(stdscr):
     col1, col2, col3 = max_x // 4, max_x // 2, (max_x * 3) // 4
     positions = {"Fire": col1, "Earth": col2, "Water": col3}
 
-   #since we want ki hame one single role chaiye iseleye.
+   #since we want ki hame one single role chaiye iseleye and yeah using radmom dunction
     chosen = random.choice(clans)
 
     stdscr.clear()
@@ -148,19 +149,16 @@ def ascii_tunnel(stdscr, duration=3, speed=0.1):
                 
                 ring_idx = (dist + frame) % len(rings)
                 char = rings[ring_idx]
-                
+
                 try:
                     stdscr.addstr(y, x, char, curses.color_pair(4))
                 except:
                     pass
-        
+
         stdscr.refresh()
         time.sleep(speed)
         frame += 1
-    
     stdscr.clear()
-
-
 def typewriter(stdscr, y, x, text, delay=0.03, color=None):
     stdscr.nodelay(True)   
     for i, char in enumerate(text):
@@ -213,8 +211,169 @@ def typewriter_wrap(stdscr, y, x, text, delay=0.03, prefix=">> "):
             stdscr.refresh()
             time.sleep(delay)
     stdscr.nodelay(False)
+def load_sentences(path="sentences.txt"): #loading sentences from main file
+    with open(path, "r") as f:
+        sentences = [line.strip() for line in f if line.strip()]
+    return sentences
+
+def pick_sentence(sentences): #picking random sentences from the main file that we have hmm..
+    return random.choice(sentences)
+def draw_typing_screen(stdscr, state, player):
+    h, w = stdscr.getmaxyx()
+    target = state["target"]
+    typed  = state["typed"]
+
+    start_y = h // 2 - 1
+    start_x = 4          #small left padding ig
+
+    for i, char in enumerate(target):
+        # wrap to next line if sentence is long or it would be hochpoch here
+        row = start_y + (start_x + i) // w
+        col = (start_x + i) % w
+
+        if i < len(typed):
+            color = curses.color_pair(11) if typed[i] == char else curses.color_pair(12)
+            stdscr.addstr(row, col, char, color)
+        elif i == len(typed):
+            stdscr.addstr(row, col, char,
+                          curses.color_pair(13) | curses.A_UNDERLINE)
+        else:
+            stdscr.addstr(row, col, char,
+                          curses.color_pair(13) | curses.A_DIM)
+
+def homepage(stdscr, state,player):
+    curses.curs_set(0)
+    h, w = stdscr.getmaxyx()
+
+    while True:
+        stdscr.erase()
+
+        title = "U N D E R R U N"
+        stdscr.addstr(h//2 - 4, w//2 - len(title)//2,
+                      title, curses.color_pair(11) | curses.A_BOLD)
+
+        sub = "press any key to begin"
+        stdscr.addstr(h//2 - 2, w//2 - len(sub)//2,
+                      sub, curses.color_pair(13) | curses.A_DIM)
+        quit_msg = "[ESC to exit]"
+        stdscr.addstr(h//2 - 1, w//2 - len(quit_msg)//2,
+              quit_msg, curses.color_pair(13) | curses.A_DIM)
 
 
+        if player.get("clan"):
+            clan_text = f"clan: {player['clan']}"
+            stdscr.addstr(h//2, w//2 - len(clan_text)//2,
+                          clan_text, curses.color_pair(13))
+
+        if state["wpm"] > 0:
+            stats = f"last wpm: {state['wpm']}  |  level: {player['level']}"
+            stdscr.addstr(h//2 + 2, w//2 - len(stats)//2,
+                          stats, curses.color_pair(13))
+
+        stdscr.refresh()
+        stdscr.nodelay(False)
+        key = stdscr.getkey()
+        #if ord(key) == 27: 
+        """if ord(key) == 27:
+       ^^^^^^^^
+TypeError: ord() expected a character, but string of length 8 found"""
+        if key == "\x1b":
+            return "quit"
+        return "start"
+
+
+def resolve_word(state, player):
+    if state["start_time"] is None:
+
+        return "continue" #a fgurad so it t doesn't go loop or crash
+    
+    elapsed = time.time() - state["start_time"]
+    char_count = len(state["typed"])
+
+    state["wpm"] = round((char_count/5)/(elapsed/60)) #https://www.typingtesttool.com/learn/how-is-wpm-calculated
+    errors = sum(
+    1 for i, ch in enumerate(state["typed"])
+    if i < len(state["target"]) and ch != state["target"][i]
+)
+    if errors == 0:
+        if(player.get("clan") == "Fire"):
+            player["xp"] += 30 + state["wpm"] // 5
+        elif(player.get("clan") == "Earth"):
+            player["xp"] += 10 + state["wpm"]// 5
+        else:
+            player["xp"] += 20 + state["wpm"]//5
+
+
+    else:
+        if (player.get("clan") == "Fire"):
+            damage = errors * 15
+        elif(player.get("clan") == "Earth"):
+            damage = errors*5
+        else:
+            damage = errors*7
+
+        player["hp"] -= damage
+        if player["hp"] <= 0:
+            player["hp"] = 0
+            return "dead"
+
+
+
+    return "continue"
+
+
+
+def game_loop(stdscr, state, player, sentences):
+    state["target"]     = pick_sentence(sentences)
+    state["typed"]      = []
+    state["start_time"] = None
+    
+    TIME_LIMIT = 10   #since time limit for our game is 10 seconds for the first task.
+
+    stdscr.nodelay(True)
+
+    while True:
+        stdscr.erase()
+        draw_typing_screen(stdscr, state, player)
+
+        
+        if state["start_time"] is not None:
+            elapsed = time.time() - state["start_time"]
+            remaining = max(0, TIME_LIMIT - elapsed)
+
+            #live wpm so you can see how cooked you are
+            chars_typed = len(state["typed"])
+            live_wpm = round((chars_typed / 5) / (elapsed / 60)) if elapsed > 0 else 0
+
+            h, w = stdscr.getmaxyx()
+            stdscr.addstr(2, 2,      f"WPM: {live_wpm}",          curses.color_pair(11))
+            stdscr.addstr(2, w - 15, f"Time: {remaining:.1f}s",   curses.color_pair(13))
+
+            # ── Time's up ─────────────────────────── buddy
+            if remaining <= 0:
+                return resolve_word(state, player)
+
+        stdscr.refresh()
+
+        try:
+            key = stdscr.getkey()
+        except curses.error:
+            continue
+
+        if state["start_time"] is None and len(key) == 1:
+            state["start_time"] = time.time() #first key and the timer go boom
+
+        if key in ("KEY_BACKSPACE", "\x7f"):
+            if state["typed"]:
+                state["typed"].pop()
+
+        elif len(key) == 1:
+            if len(state["typed"]) < len(state["target"]):
+                state["typed"].append(key)
+
+        # sentence fully typed before time runs out becuase would it endd forever agar ye naho hota
+        if len(state["typed"]) == len(state["target"]):
+            return resolve_word(state, player)
 
 def get_name(stdscr, y, x, color = None):
     curses.echo()
@@ -242,7 +401,7 @@ def gain_xp(player, amount):
         player["level"] += 1
         player["max_hp"] += 10
 def draw_status(stdscr , player):
-    max_y = max_x = stdscr.getmaxyx()
+    max_y , max_x = stdscr.getmaxyx()
     hp_bar = make_bar(player["hp"], player["max_hp"])
     xp_bar = make_bar(player["xp"], player["max_xp"])
 
@@ -250,11 +409,22 @@ def draw_status(stdscr , player):
     stdscr.addstr(0,0, text)
 
 def make_bar(current, maximum , length=10):
-    filled = int(current/maximum )*length
+    filled = int((current / maximum) * length) 
     empty = length - filled
     return "█" * filled + "░" * empty # making an health bar.
 
 def main(stdscr):
+    state = {
+    "target":     "",
+    "typed":      [],
+    "start_time": None,
+    "wpm":        0,
+}   
+    curses.start_color()   
+    curses.init_pair(11, curses.COLOR_GREEN, curses.COLOR_BLACK)  #main game system for the wpm test
+    curses.init_pair(12, curses.COLOR_RED,   curses.COLOR_BLACK)  
+    curses.init_pair(13, curses.COLOR_WHITE, curses.COLOR_BLACK)  
+
     max_y, max_x = stdscr.getmaxyx()
     if max_y < 24 or max_x < 80:
         stdscr.addstr(0, 0, f"Terminal too small! Need 80x24, you have {max_x}x{max_y}")
@@ -262,7 +432,7 @@ def main(stdscr):
         stdscr.refresh()
         stdscr.getch()
         return
-    player={"hp":100, "xp":0, "max_hp":100, "max_xp":10000, "level":0}
+    player={"hp":100, "xp":0, "max_hp":100, "max_xp":10000, "level":0, "clan":None}#right now we define it like this but after we could define in the dicotnary
     #just a simple dictonary for the player stats.
     draw_status(stdscr, player) 
     curses.start_color()
@@ -277,12 +447,9 @@ def main(stdscr):
     stdscr.addstr(7, 10, "[Press any key to continue]")
     stdscr.refresh()
     stdscr.getch()  
-
     stdscr.clear()
     draw_status(stdscr, player)
     typewriter(stdscr, 6, 10, "Oh so you are the chosen one, may I know your name?")
-    #okay why is this bugging like why is this getting like hmm, like you know 
-
     player_name = get_name(stdscr, 8, 10)
     stdscr.clear()
     draw_status(stdscr, player)
@@ -293,8 +460,6 @@ def main(stdscr):
     stdscr.refresh()
     typewriter_wrap(stdscr, 5, 10,f"{player_name}, You must remember that the rolling of clan can only be done for a single time, if you quit this game now your data would be lost, and all your progress would be gone, which i don't think you want that, so good luck.")
     typewriter(stdscr, 9, 10, "There are 3 well know clans, Earth, Fire and Water")
-   
-   #how do i make this ???
     color= curses.color_pair(1)
     stdscr.refresh()
     stdscr.getch()
@@ -305,14 +470,12 @@ def main(stdscr):
     col1 = max_x // 4
     col2 = max_x // 2
     col3 = (max_x * 3) // 4
-
-
     stdscr.addstr(mid_y,col1, "Fire")
     stdscr.addstr(mid_y,col2, "Earth")
     stdscr.addstr(mid_y,col3, "Water")
-
     stdscr.addstr(mid_y+3, col1, "> Press any button to roll your clan")
     clan = roll_clan(stdscr)
+    player["clan"] = clan
     stdscr.getch()
     typewriter_wrap(stdscr, 5, 10, f"Congratulations {player_name}, you rolled {clan}")
     stdscr.refresh()
@@ -335,10 +498,6 @@ def main(stdscr):
         stdscr.getch()
         stdscr.clear()
         ascii_plasma(stdscr, duration=3, speed=0.04)
-        
-
-
-#hmm this is acutally cool cause here we haven't actually seems this.
     elif(clan == "Earth"):
         typewriter_wrap(stdscr, 5, 10, f"You are chosen by Earth, One of the most respectable and grounded clan, this clan could increase your hp by 30% and experience points by 5%")
         stdscr.refresh()
@@ -349,11 +508,8 @@ def main(stdscr):
         stdscr.refresh()
         stdscr.getch()
         stdscr.clear()
-        matrix_rain(stdscr, duration=4, speed=0.04, density=0.7, char_set="binary")
-
-       
+        matrix_rain(stdscr, duration=4, speed=0.04, density=0.7, char_set="glitch")
         #after this there would be the starting effect in terminal of the user, hmm i thouhg of doing matrix but yeah we can do any :D
-
     else:
         typewriter_wrap(stdscr, 5, 10, f"You are chosen by Water, one of the most peaceful and loved clan, people here are overpowerful, since this clan could increase your hp by 20% and also your experience points by 10% which provides a significant balance.")
         stdscr.refresh()
@@ -365,13 +521,31 @@ def main(stdscr):
         stdscr.getch()
         stdscr.clear()
         ascii_tunnel(stdscr, duration=2.5, speed=0.08)
-        
-    #so usually i would be making only 3 fire water and earth a
-    #so like this is being a good scenario and our game is coming.
-    #writing my plan for the fire clan.
-    
-#now the mains game part would contain first and initial speed typing game of 10 second which is worked for an assasin and
-"""as he has to speed type 
-and also in his first mission he has to cool it off."""
+    sentences = load_sentences("sentences.txt")
+
+    while True:
+        result = homepage(stdscr, state, player)
+        if result == "quit":
+            break
+        while True:
+            result = game_loop(stdscr, state, player, sentences)
+            if result == "dead":
+               
+               
+               stdscr.clear()
+               stdscr.addstr(max_y//2, max_x//2 - 5, "YOU DIED",
+                          curses.color_pair(12) | curses.A_BOLD)
+               stdscr.addstr(max_y//2 + 2, max_x//2 - 10, "press any key to try again",
+                          curses.color_pair(13) | curses.A_DIM)
+               stdscr.refresh()
+               stdscr.getch()
+            # reset hp for next round
+               player["hp"] = player["max_hp"]
+               break
+    stdscr.refresh()
+    stdscr.getch()
+    stdscr.clear()
+
+    typewriter_wrap(stdscr, 5, 10, "It seems that you have had fun in your first task, or not, idk, but the system tells me that you want more, so why don't we give a all on round, where we type all our heart out.")
 
 wrapper(main)
