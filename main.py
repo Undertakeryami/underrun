@@ -5,9 +5,16 @@ import random
 import time
 import string
 import math
+import pygame
 
 
-
+def start_music(k):
+    pygame.mixer.init()
+    pygame.mixer.music.load(k)   
+    pygame.mixer.music.set_volume(0.4)
+    pygame.mixer.music.play(-1)          
+def stop_music():
+        pygame.mixer.music.stop()
 
 #main game meachanics That i have to workn on right now:
 #this code here is inspired by the turotiral of best beginner python project(for wpm) ;
@@ -142,7 +149,7 @@ def ascii_tunnel(stdscr, duration=3, speed=0.1):
         for y in range(max_y - 1):
             for x in range(max_x - 1):
                 #elispese shape equations
-                dy = (y - cy) / (max_y / 2)
+                dy = (y - cy) / (max_y / 2)#aaaaaaaaaaaaaaaa
                 dx = (x - cx) / (max_x / 4)  # divide by 4 for wide terminal saw this in yt video
                 dist = int((dy**2 + dx**2) ** 0.5 * len(rings))
                 
@@ -414,6 +421,7 @@ def make_bar(current, maximum , length=10):
     return "█" * filled + "░" * empty # making an health bar.
 
 def main(stdscr):
+    start_music("main.mp3")
     state = {
     "target":     "",
     "typed":      [],
@@ -424,7 +432,6 @@ def main(stdscr):
     curses.init_pair(11, curses.COLOR_GREEN, curses.COLOR_BLACK)  #main game system for the wpm test
     curses.init_pair(12, curses.COLOR_RED,   curses.COLOR_BLACK)  
     curses.init_pair(13, curses.COLOR_WHITE, curses.COLOR_BLACK)  
-
     max_y, max_x = stdscr.getmaxyx()
     if max_y < 24 or max_x < 80:
         stdscr.addstr(0, 0, f"Terminal too small! Need 80x24, you have {max_x}x{max_y}")
@@ -520,6 +527,7 @@ def main(stdscr):
         stdscr.refresh()
         stdscr.getch()
         stdscr.clear()
+        #             
         ascii_tunnel(stdscr, duration=2.5, speed=0.08)
     sentences = load_sentences("sentences.txt")
 
@@ -545,7 +553,8 @@ def main(stdscr):
     stdscr.refresh()
     stdscr.getch()
     stdscr.clear()
-
+#wait i need to add the music, i would do by pygame.mixer from pygame library
     typewriter_wrap(stdscr, 5, 10, "It seems that you have had fun in your first task, or not, idk, but the system tells me that you want more, so why don't we give a all on round, where we type all our heart out.")
-
+    stop_music()
 wrapper(main)
+
