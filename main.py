@@ -1,14 +1,28 @@
 import curses
-from curses import *
+import os
+
+
 from curses import wrapper
 import random
 import time
 import string
 import math
 import pygame
+from wonderwords import RandomSentence
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+def calc_accuracy(typed, target):
+    if not typed:
+        return 0.0 #caclustaiton of accuracy cause it woud be needed in the level 2
+    correct = sum(1 for i in range(min(len(typed), len(target))) if typed[i] == target[i])
+    return round((correct / len(typed)) * 100, 1)
 
+def gen_sentence():
+    rs = RandomSentence()
+    # simple sentence generation cause .txt file was too boring
+    return rs.simple_sentence()
 
 def start_music(k):
+    pygame.mixer.pre_init(44100, -16, 2, 4096)  # larger buffer gives the enough space, hmm to make it music playing ig
     pygame.mixer.init()
     pygame.mixer.music.load(k)   
     pygame.mixer.music.set_volume(0.4)
@@ -90,9 +104,6 @@ def matrix_rain(stdscr, duration = 3, speed = 0.05, density = 1, char_set = "mat
         time.sleep(speed)
     stdscr.clear()
 
-
-
-
 def roll_clan(stdscr):
     clans = ["Fire", "Earth", "Water"]
     max_y, max_x = stdscr.getmaxyx()
@@ -131,7 +142,6 @@ def get_typed_input(stdscr, y, x):
         #if the typing speed could be cacluated simulatoenly then we could think og making it to a nice game where woe could highlight in green and red the mistakes of the users
     #making this function so that we can see the typing speed in real life, but i 
     #have to work on the random generation of the sentences tpp.
-
 
 def ascii_tunnel(stdscr, duration=3, speed=0.1):
     max_y, max_x = stdscr.getmaxyx()
@@ -297,7 +307,11 @@ def resolve_word(state, player):
     elapsed = time.time() - state["start_time"]
     char_count = len(state["typed"])
 
-    state["wpm"] = round((char_count/5)/(elapsed/60)) #https://www.typingtesttool.com/learn/how-is-wpm-calculated
+    state["wpm"] = round((char_count/5)/(elapsed/60))
+    if 'best_wpm' not in player:
+        player['best_wpm'] = 0
+    player['best_wpm'] = max(player['best_wpm'], state['wpm'])
+     #https://www.typingtesttool.com/learn/how-is-wpm-calculated
     errors = sum(
     1 for i, ch in enumerate(state["typed"])
     if i < len(state["target"]) and ch != state["target"][i]
@@ -414,20 +428,116 @@ def draw_status(stdscr , player):
 
     text = f"HP:{hp_bar}|XP:{xp_bar}"
     stdscr.addstr(0,0, text)
+def level2_music():
+    pygame.mixer.music.stop()  # Stop level 1 music
+    pygame.mixer.music.load("main2.mp3")
+    pygame.mixer.music.play(-1) 
+def second_level_gameloop(stdscr, state, player, sentences):
+    stdscr.clear()
+   
+    draw_status(stdscr, player)
+    level2_music()
+    h, w = stdscr.getmaxyx()
 
+    typewriter_wrap(stdscr, h//2 - 3, 10,
+        "Ahmm i see you have cleared level 1 but since, that was child play for you now the second level begins :D.")
+    typewriter_wrap(stdscr, h//2, 10,
+        "Reach 110 WPM with 80 percent accuracy to win. Good luck, shinobi .")
+    stdscr.addstr(h//2 + 3, w//2 - 12, "Press any key to begin...")
+
+    stdscr.refresh()
+    stdscr.nodelay(False)
+    stdscr.getch()       # waits for keypress before starting hmmmmm, yup :D
+    stdscr.clear()
+    state["target"]     = gen_sentence()
+    state["typed"]      = []
+    state["start_time"] = None
+
+    stdscr.nodelay(True)
+    while True:
+        stdscr.erase()
+        draw_typing_screen(stdscr, state, player)
+        draw_status(stdscr, player)
+        h, w = stdscr.getmaxyx() #okay but what about the   Accuracy display hmm lemme work on that 
+
+        if state["start_time"] is not None:
+            elapsed  = time.time()- state["start_time"]
+            live_wpm = round((len(state["typed"]) / 5) / (elapsed / 60)) if elapsed > 0 else 0
+            accuracy = calc_accuracy(state["typed"], state["target"]) #calculation of accuracy hmm, 
+            acc_color = curses.color_pair(11) if accuracy >= 80 else curses.color_pair(12)
+            stdscr.addstr(2, 2, f"WPM: {live_wpm}", curses.color_pair(11))
+            stdscr.addstr(2, 20,     f"Accuracy: {accuracy}%",    acc_color)
+            stdscr.addstr(2, w - 26, "Goal: 110 WPM + 80% acc",  curses.color_pair(13))
+        stdscr.refresh()
+        #The key handling block was requirwd, to hadndle the input :D
+        try:
+            key = stdscr.getkey()
+        except curses.error:
+            continue
+
+        if state["start_time"] is None and len(key) == 1:
+            state["start_time"] = time.time()
+
+        if key in ("KEY_BACKSPACE", "\x7f"):
+            if state["typed"]:
+                state["typed"].pop()
+        elif len(key) == 1:
+            if len(state["typed"]) < len(state["target"]):
+                state["typed"].append(key)
+        if len(state["typed"]) >= len(state["target"]):
+            result   = resolve_word(state, player)
+            accuracy = calc_accuracy(state["typed"], state["target"])
+
+            if state["wpm"] >= 110 and accuracy >= 80.0:
+                # WINIING  chicken dinner lol :D
+                stdscr.clear()
+                draw_status(stdscr, player)
+                typewriter_wrap(stdscr, h//2 - 2, 10,
+                    f"YOU WIN! {state['wpm']} WPM at {accuracy}% accuracy. True ninja confirmed.")
+                stdscr.addstr(h//2 + 2, w//2 - 12, "Press any key to exit...", curses.color_pair(11))
+                stop_music()
+                stdscr.nodelay(False)
+                stdscr.refresh()
+                stdscr.getch()
+                return "quit"
+            stdscr.clear()
+            draw_status(stdscr, player)
+            msg = f"WPM: {state['wpm']} | Acc: {accuracy}% — Need 110 WPM + 80%!"
+            acc_color = curses.color_pair(11) if accuracy >= 80 else curses.color_pair(12)
+            stdscr.addstr(h//2,     w//2 - len(msg)//2, msg, acc_color)
+            stdscr.addstr(h//2 + 2, w//2 - 14, "Press key for next sentence...", curses.color_pair(13))
+            stdscr.nodelay(False)
+            stdscr.refresh()
+            stdscr.getch()
+            if result == "dead":
+                stop_music()
+                return "dead"
+            
+            state["target"]     = gen_sentence()
+            state["typed"]      = []
+            state["start_time"] = None
+            stdscr.nodelay(True)     
+        
+                  
 def make_bar(current, maximum , length=10):
-    filled = int((current / maximum) * length) 
+    if maximum <= 0:
+        return "░" * length
+    filled = int((current / maximum) * length)
+   
     empty = length - filled
     return "█" * filled + "░" * empty # making an health bar.
-
+#instaling wonderwords library for random sentence generation :D
+#making 2nd music :D
+ # Loop forever
 def main(stdscr):
-    start_music("main.mp3")
+    start_music("main3.mp3")
     state = {
     "target":     "",
     "typed":      [],
     "start_time": None,
     "wpm":        0,
 }   
+
     curses.start_color()   
     curses.init_pair(11, curses.COLOR_GREEN, curses.COLOR_BLACK)  #main game system for the wpm test
     curses.init_pair(12, curses.COLOR_RED,   curses.COLOR_BLACK)  
@@ -439,7 +549,8 @@ def main(stdscr):
         stdscr.refresh()
         stdscr.getch()
         return
-    player={"hp":100, "xp":0, "max_hp":100, "max_xp":10000, "level":0, "clan":None}#right now we define it like this but after we could define in the dicotnary
+    player={"hp":100, "xp":0, "max_hp":100, "max_xp":10000, "level":1, "clan":None, "best_wpm":0}
+    #right now we define it like this but after we could define in the dicotnary
     #just a simple dictonary for the player stats.
     draw_status(stdscr, player) 
     curses.start_color()
@@ -530,31 +641,37 @@ def main(stdscr):
         #             
         ascii_tunnel(stdscr, duration=2.5, speed=0.08)
     sentences = load_sentences("sentences.txt")
-
+#this is explotable since i haven't made the accuracy function yet, and in second level i owould be using the accuracy function to make the changes nd the you know making the , liike second level a bit hard.
+    #changing the level system and fixing broken one
     while True:
         result = homepage(stdscr, state, player)
         if result == "quit":
-            break
-        while True:
-            result = game_loop(stdscr, state, player, sentences)
-            if result == "dead":
-               
-               
-               stdscr.clear()
-               stdscr.addstr(max_y//2, max_x//2 - 5, "YOU DIED",
-                          curses.color_pair(12) | curses.A_BOLD)
-               stdscr.addstr(max_y//2 + 2, max_x//2 - 10, "press any key to try again",
-                          curses.color_pair(13) | curses.A_DIM)
-               stdscr.refresh()
-               stdscr.getch()
-            # reset hp for next round
-               player["hp"] = player["max_hp"]
-               break
-    stdscr.refresh()
-    stdscr.getch()
-    stdscr.clear()
+            break #force qutiing if you are frustraded, btw i spent this 10 minutes to debug seeing results is mispelled worong lol
+        if player['best_wpm'] >= 70: #requireentent for next level
+            result = second_level_gameloop(stdscr, state, player, sentences)
+        else:
+            stdscr.clear()
+            draw_status(stdscr, player)
+            h, w = stdscr.getmaxyx()
+            stdscr.addstr(h//2 - 1, w//2 - 25, "Improvement needed!, To reach 70wpm.", curses.color_pair(12) | curses.A_BOLD)
+            stdscr.addstr(h//2, w//2 - 30, f"Best WPM: {player['best_wpm']:.1f} < 70", curses.color_pair(13))
+            stdscr.addstr(h//2 + 1, w//2 - 25, "Retry Level 1", curses.color_pair(13))
+            stdscr.addstr(h//2 + 3, w//2 - 15, "Press any key to retry level 1...", curses.color_pair(11))
+            stdscr.refresh()
+            stdscr.nodelay(False)
+            stdscr.getch()
+            stdscr.nodelay(True)
+            result = game_loop(stdscr, state, player, sentences) 
+        if result == 'dead':
+            stdscr.clear()
+            maxy, maxx = stdscr.getmaxyx()
+            stdscr.addstr(maxy//2, maxx//2 - 5, "YOU DIED! LOL", curses.color_pair(12) | curses.A_BOLD)
+            stdscr.addstr(maxy//2 + 2, maxx//2 - 10, "press any key to try again", curses.color_pair(13))
+            stdscr.refresh()
+            stdscr.getch()
+            player['hp'] = player['max_hp']
+
+ # Level 1 only
 #wait i need to add the music, i would do by pygame.mixer from pygame library
-    typewriter_wrap(stdscr, 5, 10, "It seems that you have had fun in your first task, or not, idk, but the system tells me that you want more, so why don't we give a all on round, where we type all our heart out.")
     stop_music()
 wrapper(main)
-
