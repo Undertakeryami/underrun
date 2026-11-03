@@ -12,10 +12,15 @@ install all libraries like pygame, curses, i have attached a .sh file which may 
 
 The demo link is given here
 
+
 https://asciinema.org/a/gR0X57tbvWcZlYSb
 
 
 Thankyou :D
+
+some peeks
+![Screenshot](screenshot2.png)
+![Screenshot](screenshot3.png)
 
 
 
